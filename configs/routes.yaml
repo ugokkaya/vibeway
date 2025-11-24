@@ -1,0 +1,51 @@
+server:
+  port: 8080
+  mode: production
+  request_timeout_ms: 5000
+
+routes:
+  - path: "/api/v1/users/*"
+    methods: ["GET","POST"]
+    upstream: "user-service"
+    middlewares: ["jwt", "rbac", "ratelimit"]
+  
+  - path: "/google/*"
+    methods: ["GET"]
+    upstream: "google-service"
+    middlewares: ["ratelimit"]
+
+upstreams:
+  user-service:
+    urls:
+      - "http://user-service:3001"
+    load_balancer: "round_robin"
+    timeout_ms: 3000
+    retry:
+      count: 3
+      backoff_ms: 200
+    circuit_breaker:
+      failure_threshold: 5
+      reset_timeout_ms: 10000
+
+  google-service:
+    urls:
+      - "https://www.google.com"
+    load_balancer: "round_robin"
+    timeout_ms: 5000
+    retry:
+      count: 2
+      backoff_ms: 100
+    circuit_breaker:
+      failure_threshold: 3
+      reset_timeout_ms: 30000
+
+security:
+  jwt:
+    issuer: "my-company"
+    audience: "internal"
+    public_key_path: "./keys/public.pem"
+    secret: "HS256_SECRET"
+  rate_limit:
+    global_per_minute: 6000
+    per_ip: 60
+    per_route: 30

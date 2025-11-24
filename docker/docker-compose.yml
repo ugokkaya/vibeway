@@ -1,0 +1,58 @@
+version: '3.8'
+
+services:
+  gateway:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    ports:
+      - "8081:8080"
+    environment:
+      - SERVER_MODE=production
+      - REDIS_ADDR=redis:6379
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://jaeger:4317
+    depends_on:
+      - redis
+      - jaeger
+      - prometheus
+    networks:
+      - gateway-net
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6380:6379"
+    networks:
+      - gateway-net
+
+  prometheus:
+    image: prom/prometheus:latest
+    ports:
+      - "9093:9090"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+    networks:
+      - gateway-net
+
+  jaeger:
+    image: jaegertracing/all-in-one:latest
+    ports:
+      - "16687:16686" # UI
+      - "4317:4317"   # OTLP gRPC
+    environment:
+      - COLLECTOR_OTLP_ENABLED=true
+    networks:
+      - gateway-net
+
+  # Mock Upstream Service
+  user-service:
+    image: hashicorp/http-echo
+    command: -text="Hello from User Service" -listen=:3001
+    ports:
+      - "3002:3001"
+    networks:
+      - gateway-net
+
+networks:
+  gateway-net:
+    driver: bridge
