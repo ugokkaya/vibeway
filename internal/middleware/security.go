@@ -1,7 +1,18 @@
 package middleware
 
 import (
+	"regexp"
+
 	"github.com/gofiber/fiber/v3"
+)
+
+var (
+	// Basic SQL Injection patterns
+	// This is NOT a full WAF, but covers common obvious attacks
+	sqliPattern = regexp.MustCompile(`(?i)(UNION\s+SELECT|DROP\s+TABLE|INSERT\s+INTO|DELETE\s+FROM|UPDATE\s+\w+\s+SET|--|;\s*$)`)
+
+	// Basic XSS patterns
+	xssPattern = regexp.MustCompile(`(?i)(<script|javascript:|on\w+\s*=)`)
 )
 
 func Security() fiber.Handler {
@@ -31,19 +42,11 @@ func Security() fiber.Handler {
 }
 
 func containsSuspiciousPatterns(s string) bool {
-	suspicious := []string{
-		"<script>", "javascript:", "UNION SELECT", "DROP TABLE", "--",
+	if sqliPattern.MatchString(s) {
+		return true
 	}
-	for _, p := range suspicious {
-		if containsIgnoreCase(s, p) {
-			return true
-		}
+	if xssPattern.MatchString(s) {
+		return true
 	}
 	return false
-}
-
-func containsIgnoreCase(s, substr string) bool {
-	// Simple case-insensitive check
-	// For better performance, use strings.Contains with ToLower
-	return false // Placeholder for brevity, implement properly
 }

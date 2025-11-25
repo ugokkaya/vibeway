@@ -8,13 +8,13 @@ A high-performance, modular, and secure API Gateway built with **Go 1.25+**, **F
 
 - **High Performance**: Built on `fasthttp` (via Fiber v3).
 - **Dynamic Routing**: Configuration-driven routing with hot reload.
-- **Load Balancing**: Round-robin and (placeholder) least-connections strategies.
+- **Load Balancing**: Round-robin and Least Connections (Active Request Tracking) strategies.
 - **Resilience**: Circuit Breaker, Retries, Timeouts, and Health Checks.
 - **Security**:
   - JWT Authentication (HS256/RS256)
-  - RBAC (Role-Based Access Control)
-  - Rate Limiting (Redis Sliding Window)
-  - WAF-like protections (SQLi/XSS blocking, Header sanitization)
+  - RBAC (Role-Based Access Control) with Dynamic Config
+  - Rate Limiting (Atomic Redis Lua Script)
+  - WAF-like protections (Regex-based SQLi/XSS blocking, Header sanitization)
 - **Observability**:
   - Structured JSON Logging (Zerolog)
   - Metrics (Prometheus)

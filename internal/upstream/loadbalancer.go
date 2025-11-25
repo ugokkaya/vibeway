@@ -31,24 +31,43 @@ func (rb *RoundRobin) Next(urls []string) string {
 // We'll stick to RoundRobin as the default and implement a basic structure for LeastConn.
 
 type LeastConnections struct {
-	// In a real implementation, this would need access to the connection pool stats
-	// For this simplified version, we'll fall back to RoundRobin logic
-	// or we would need to pass connection counts to Next().
-	// To keep it clean and strictly follow the interface, we will implement a weighted-like
-	// approach if we had weights, but for now let's use a mutex-protected map if we were tracking it.
-	// Since we don't have the connection stats here, we will implement it as a stub
-	// that behaves like RoundRobin for now, or we can expand the interface.
-	// Let's expand the interface in the Manager, but here keep it simple.
-	rr *RoundRobin
+	rr       *RoundRobin
+	getStats func(string) int64
 }
 
-func NewLeastConnections() *LeastConnections {
+func NewLeastConnections(getStats func(string) int64) *LeastConnections {
 	return &LeastConnections{
-		rr: NewRoundRobin(),
+		rr:       NewRoundRobin(),
+		getStats: getStats,
 	}
 }
 
 func (lc *LeastConnections) Next(urls []string) string {
-	// Fallback to RR as we don't have connection stats passed in
+	if len(urls) == 0 {
+		return ""
+	}
+
+	// If no stats function provided, fallback to RR
+	if lc.getStats == nil {
+		return lc.rr.Next(urls)
+	}
+
+	var best string
+	var min int64 = -1
+
+	for _, u := range urls {
+		count := lc.getStats(u)
+		if min == -1 || count < min {
+			min = count
+			best = u
+		}
+	}
+
+	// If we found a best candidate
+	if best != "" {
+		return best
+	}
+
+	// Fallback
 	return lc.rr.Next(urls)
 }
