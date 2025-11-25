@@ -13,6 +13,9 @@ type Upstream struct {
 	LoadBalancer   LoadBalancer
 	HealthChecker  *HealthChecker
 	CircuitBreaker *CircuitBreaker
+
+	activeRequests map[string]int64
+	activeReqMu    sync.RWMutex
 }
 
 type Manager struct {
@@ -27,19 +30,22 @@ func NewManager(cfg map[string]config.UpstreamConfig) *Manager {
 
 	for name, uCfg := range cfg {
 		lb := NewRoundRobin() // Default to RR
-		if uCfg.LoadBalancer == "least_connections" {
-			// lb = NewLeastConnections() // Placeholder for now
-		}
 
 		u := &Upstream{
-			Name:          name,
-			URLs:          uCfg.URLs,
-			LoadBalancer:  lb,
-			HealthChecker: NewHealthChecker(uCfg.URLs, 10*time.Second), // Default interval
+			Name:           name,
+			URLs:           uCfg.URLs,
+			activeRequests: make(map[string]int64),
+			HealthChecker:  NewHealthChecker(uCfg.URLs, 10*time.Second), // Default interval
 			CircuitBreaker: NewCircuitBreaker(
 				uCfg.CircuitBreaker.FailureThreshold,
 				time.Duration(uCfg.CircuitBreaker.ResetTimeoutMs)*time.Millisecond,
 			),
+		}
+
+		if uCfg.LoadBalancer == "least_connections" {
+			u.LoadBalancer = NewLeastConnections(u.GetActiveRequestCount)
+		} else {
+			u.LoadBalancer = lb
 		}
 
 		// Start health checks
@@ -71,4 +77,24 @@ func (u *Upstream) GetNextURL() (string, bool) {
 	}
 
 	return u.LoadBalancer.Next(healthyURLs), true
+}
+
+func (u *Upstream) IncConnection(url string) {
+	u.activeReqMu.Lock()
+	defer u.activeReqMu.Unlock()
+	u.activeRequests[url]++
+}
+
+func (u *Upstream) DecConnection(url string) {
+	u.activeReqMu.Lock()
+	defer u.activeReqMu.Unlock()
+	if u.activeRequests[url] > 0 {
+		u.activeRequests[url]--
+	}
+}
+
+func (u *Upstream) GetActiveRequestCount(url string) int64 {
+	u.activeReqMu.RLock()
+	defer u.activeReqMu.RUnlock()
+	return u.activeRequests[url]
 }

@@ -1,12 +1,12 @@
 package router
 
 import (
+	"strings"
+	"time"
 	"vibeway/internal/config"
 	"vibeway/internal/middleware"
 	"vibeway/internal/proxy"
 	"vibeway/internal/upstream"
-	"strings"
-	"time"
 
 	"github.com/gofiber/fiber/v3"
 )
@@ -34,11 +34,7 @@ func SetupRoutes(app *fiber.App, cfg config.Config, upstreams *upstream.Manager)
 					time.Minute,
 				))
 			case "rbac":
-				// This needs per-route config for roles.
-				// For now, we assume a generic RBAC or we need to extend config.
-				// Let's assume the route config might have "allowed_roles" in a real app.
-				// Here we just add the middleware placeholder.
-				handlers = append(handlers, middleware.RBAC(nil))
+				handlers = append(handlers, middleware.RBAC(rCfg.AllowedRoles))
 			}
 		}
 
@@ -53,6 +49,10 @@ func SetupRoutes(app *fiber.App, cfg config.Config, upstreams *upstream.Manager)
 			if !ok {
 				return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{"error": "No healthy upstream available"})
 			}
+
+			// Track active connections
+			u.IncConnection(targetURL)
+			defer u.DecConnection(targetURL)
 
 			// Rewrite path if needed, or just append
 			// Simple append: targetURL + c.Path() (if targetURL is base)

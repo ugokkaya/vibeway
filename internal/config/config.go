@@ -23,10 +23,11 @@ type ServerConfig struct {
 }
 
 type RouteConfig struct {
-	Path        string   `mapstructure:"path"`
-	Methods     []string `mapstructure:"methods"`
-	Upstream    string   `mapstructure:"upstream"`
-	Middlewares []string `mapstructure:"middlewares"`
+	Path         string   `mapstructure:"path"`
+	Methods      []string `mapstructure:"methods"`
+	Upstream     string   `mapstructure:"upstream"`
+	Middlewares  []string `mapstructure:"middlewares"`
+	AllowedRoles []string `mapstructure:"allowed_roles"`
 }
 
 type UpstreamConfig struct {
